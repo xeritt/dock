@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.4
+VERSION=1.5
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Copy to project dir and run ./dock"
@@ -9,18 +9,53 @@ function mainMenu {
 	"composeup" "Поднять compose" \
 	"composedown" "Остановить compose" \
 	"composeimages" "Список образов" \
-	"ps" "Список контейнеров" \
-	"psshort" "Список контейнеров (ID NAME)" \
-	"logcontainer" "Лог контейнера" \
-	"stop" "Остановить контейнер" \
-	"bash" "Bash в контейнере" \
-	"images" "Список всех образов" \
-	"rmimage" "Удалить образ" \
-	"info" "Информация" \
-	"version" "Версия" \
+	"containers" "Контейнеры" \
+	"images" "Образы" \
+	"networks" "Сети" \
+	"infos" Информация \
+	"dockerfile" "Dockerfile" \
+	3>&1 1>&2 2>&3)
+}
+
+function networksMenu {
+	OPTION2=$(whiptail --title  "Сети" --menu  "Команды" 20 60 10 \
+	"ls" "Список сетей" \
+	"inspect" "Информация о сети" \
+	"rm" "Удаление сети" \
+	3>&1 1>&2 2>&3)
+}
+
+function dockerfileMenu {
+	OPTION2=$(whiptail --title  "Система управения docker $VERSION" --menu  "Команды" 20 60 10 \
 	"build" "Собрать из Dockerfile" \
 	3>&1 1>&2 2>&3)
 }
+
+function imagesMenu {
+	OPTION2=$(whiptail --title  "Образы" --menu  "Команды" 20 60 10 \
+	"images" "Список всех образов" \
+	"rmimage" "Удалить образ" \
+	3>&1 1>&2 2>&3)
+}
+
+function infosMenu {
+	OPTION2=$(whiptail --title  "Система управения docker $VERSION" --menu  "Команды" 20 60 10 \
+	"info" "Информация" \
+	"version" "Версия" \
+	3>&1 1>&2 2>&3)
+}
+
+function containersMenu {
+	OPTION2=$(whiptail --title  "Контейнеры" --menu  "Команды" 20 60 10 \
+	"ps" "Список контейнеров" \
+	"psshort" "Список контейнеров (ID NAME)" \
+	"logs" "Лог контейнера" \
+	"stop" "Остановить контейнер" \
+	"bash" "Bash в контейнере" \
+	"rm" "Удалить контейнер" \
+	3>&1 1>&2 2>&3)
+}
+
 
 function pressKey {
 	read -sn 1 -p 'Press any key to continue...';echo
@@ -41,17 +76,156 @@ function main {
 			exit
 		fi
 		
-		if [ $OPTION = "ps" ];  then
-			docker ps
-			pressKey
-			continue
+		if [ $OPTION = "networks" ];  then
+			networksMenu
+			##docker ps
+			if [ $OPTION2 = "ls" ];  then
+				docker network ls
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "inspect" ];  then
+				path1=$(docker network ls --format '{{.ID}}:{{.Name}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор сети" --radiolist \
+				"Выберите сеть?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				docker network inspect $DISTROS
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "rm" ];  then
+				path1=$(docker network ls --format '{{.ID}}:{{.Name}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор сети" --radiolist \
+				"Выберите сеть для удаления?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				docker network rm $DISTROS
+				pressKey
+				continue
+			fi
 		fi
+
+		if [ $OPTION = "containers" ];  then
+			containersMenu
+			##docker ps
+			if [ $OPTION2 = "ps" ];  then
+				docker ps
+				pressKey
+				continue
+			fi
 		
-		if [ $OPTION = "psshort" ];  then
-			docker ps --format '{{.ID}} {{.Names}}'
-			pressKey
+			if [ $OPTION2 = "psshort" ];  then
+				docker ps --format '{{.ID}} {{.Names}}'
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "stop" ];  then
+				path1=$(docker ps --format '{{.Names}}')
+				res=""
+				for entry in $path1
+				do
+					res=${res}${entry}" "${entry}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
+				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				docker stop $DISTROS
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "rm" ];  then
+				path1=$(docker ps --format '{{.ID}}:{{.Names}}')
+				##path1=$(docker ps --format '{{.Names}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+					##res=${res}${entry}" "${entry}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
+				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				docker rm $DISTROS
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "logs" ];  then
+				path1=$(docker ps --format '{{.ID}}:{{.Names}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
+				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				if [ "$DISTROS" ];  then
+					docker logs $DISTROS
+				fi
+
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "bash" ];  then
+				path1=$(docker-compose ps --format '{{.Service}}:{{.Names}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор сервиса" --radiolist \
+				"Выберите сервис?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				if [ "$DISTROS" ];  then
+					docker-compose exec $DISTROS bash 
+				fi
+
+				pressKey
+				continue
+			fi
+			##echo $OPTION2
+			##pressKey
 			continue
 		fi
+
+		
 
 		if [ $OPTION = "composeup" ];  then
 			docker-compose up -d
@@ -65,113 +239,70 @@ function main {
 			continue
 		fi
 
-		if [ $OPTION = "build" ];  then
-			docker build - < Dockerfile 
-			exit
-			continue
-		fi
-		
-		if [ $OPTION = "stop" ];  then
-			path1=$(docker ps --format '{{.Names}}')
-			res=""
-			for entry in $path1
-			do
-			  res=${res}${entry}" "${entry}" OFF "
-			done
-			
-			DISTROS=$(whiptail --title  "Выбор образа" --radiolist \
-			"Выберите проект?" 25 85 18 $res 3>&1 1>&2 2>&3)
-			exitstatus=$?
-
-			docker stop $DISTROS
-			pressKey
-			continue
-		fi
-		
-		if [ $OPTION = "images" ] || [ $OPTION = "info" ] || [ $OPTION = "version" ];  then
-			docker $OPTION
-			pressKey
-			continue
-		fi
-
 		if [ $OPTION = "composeimages" ];  then
-			docker compose images
-			pressKey
+				docker compose images
+				pressKey
+				continue
+		fi
+
+		if [ $OPTION = "dockerfile" ];  then
+			dockerfileMenu
+			if [ $OPTION2 = "build" ];  then
+				docker build - < Dockerfile 
+				exit
+				continue
+			fi
+			continue
+		fi
+		
+		if [ $OPTION = "infos" ];  then
+			infosMenu
+			if [ $OPTION2 = "info" ] || [ $OPTION2 = "version" ];  then
+				docker $OPTION2
+				pressKey
+				continue
+			fi
 			continue
 		fi
 
-		if [ $OPTION = "rmimage" ];  then
-			#docker rm images
-			#docker images --format {{.ID}}
-			#path1=$(docker images --format '{{.ID}}')
-			path1=$(docker images --format '{{.ID}}:"{{.Repository}}-{{.Tag}}"')
-			res=""
-			for entry in $path1
-			do
-			  ID=$(echo $entry | cut -d ":" -f 1)
-			  NAME=$(echo $entry | cut -d ":" -f 2)
-			  res=${res}${ID}" "${NAME}" OFF "
-			done
-			
-			DISTROS=$(whiptail --title  "Выбор образа" --radiolist \
-			"Выберите проект?" 25 85 18 $res 3>&1 1>&2 2>&3)
-			exitstatus=$?
+		if [ $OPTION = "images" ];  then
+			imagesMenu
 
-			if [ "$DISTROS" ];  then
-			  docker image rm $DISTROS
+			if [ $OPTION2 = "images" ];  then
+				docker images
+				pressKey
+				continue
 			fi
 
-			pressKey
-			continue
-		fi
+			if [ $OPTION2 = "rmimage" ];  then
+				#docker rm images
+				#docker images --format {{.ID}}
+				#path1=$(docker images --format '{{.ID}}')
+				path1=$(docker images --format '{{.ID}}:"{{.Repository}}-{{.Tag}}"')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор образа" --radiolist \
+				"Выберите проект?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
 
-		if [ $OPTION = "logcontainer" ];  then
-			#docker rm images
-			#docker images --format {{.ID}}
-			#path1=$(docker images --format '{{.ID}}')
-			##path1=$(docker images --format '{{.ID}}:"{{.Repository}}-{{.Tag}}"')
-			path1=$(docker ps --format '{{.ID}}:{{.Names}}')
-			res=""
-			for entry in $path1
-			do
-			  ID=$(echo $entry | cut -d ":" -f 1)
-			  NAME=$(echo $entry | cut -d ":" -f 2)
-			  res=${res}${ID}" "${NAME}" OFF "
-			done
-			
-			DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
-			"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
-			exitstatus=$?
+				if [ "$DISTROS" ];  then
+					docker image rm $DISTROS
+				fi
 
-			if [ "$DISTROS" ];  then
-			  docker logs $DISTROS
+				##pressKey
+				continue
 			fi
-
-			pressKey
-			continue
 		fi
 
-		if [ $OPTION = "bash" ];  then
-			path1=$(docker-compose ps --format '{{.Service}}:{{.Names}}')
-			res=""
-			for entry in $path1
-			do
-			  ID=$(echo $entry | cut -d ":" -f 1)
-			  NAME=$(echo $entry | cut -d ":" -f 2)
-			  res=${res}${ID}" "${NAME}" OFF "
-			done
-			
-			DISTROS=$(whiptail --title  "Выбор сервиса" --radiolist \
-			"Выберите сервис?" 25 85 18 $res 3>&1 1>&2 2>&3)
-			exitstatus=$?
+		
 
-			if [ "$DISTROS" ];  then
-			  docker-compose exec $DISTROS bash 
-			fi
 
-			pressKey
-			continue
-		fi
 		##mainFunctions
 	done
 }
