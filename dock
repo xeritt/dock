@@ -1,8 +1,17 @@
 #!/bin/bash
-VERSION=1.5
+VERSION=1.5.1
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Copy to project dir and run ./dock"
+
+OPTION='?' 
+OPTION2='?' 
+
+function checkOption2 {
+	if [ -z $OPTION2 ]; then
+		OPTION2='?' 
+	fi
+}
 
 function mainMenu {
 	OPTION=$(whiptail --title  "Система управения docker $VERSION" --menu  "Команды" 20 60 10 \
@@ -78,6 +87,7 @@ function main {
 		
 		if [ $OPTION = "networks" ];  then
 			networksMenu
+			checkOption2
 			##docker ps
 			if [ $OPTION2 = "ls" ];  then
 				docker network ls
@@ -126,7 +136,7 @@ function main {
 
 		if [ $OPTION = "containers" ];  then
 			containersMenu
-			##docker ps
+			checkOption2
 			if [ $OPTION2 = "ps" ];  then
 				docker ps
 				pressKey
@@ -247,6 +257,7 @@ function main {
 
 		if [ $OPTION = "dockerfile" ];  then
 			dockerfileMenu
+			checkOption2
 			if [ $OPTION2 = "build" ];  then
 				docker build - < Dockerfile 
 				exit
@@ -257,6 +268,7 @@ function main {
 		
 		if [ $OPTION = "infos" ];  then
 			infosMenu
+			checkOption2
 			if [ $OPTION2 = "info" ] || [ $OPTION2 = "version" ];  then
 				docker $OPTION2
 				pressKey
@@ -267,7 +279,7 @@ function main {
 
 		if [ $OPTION = "images" ];  then
 			imagesMenu
-
+			checkOption2
 			if [ $OPTION2 = "images" ];  then
 				docker images
 				pressKey
@@ -299,10 +311,6 @@ function main {
 				continue
 			fi
 		fi
-
-		
-
-
 		##mainFunctions
 	done
 }
