@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.5.3
+VERSION=1.5.4
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Install whiptail [sudo apt install whiptail]"
@@ -22,6 +22,7 @@ function mainMenu {
 	"containers" "Контейнеры" \
 	"images" "Образы" \
 	"networks" "Сети" \
+	"volumes" "Тома" \
 	"infos" Информация \
 	"dockerfile" "Dockerfile" \
 	3>&1 1>&2 2>&3)
@@ -69,9 +70,53 @@ function containersMenu {
 	3>&1 1>&2 2>&3)
 }
 
+function volumesMenu {
+	OPTION2=$(whiptail --title  "Тома" --menu  "Команды" 20 60 10 \
+	"ls" "Список томов" \
+	"inspect" "Информация о томе" \
+	3>&1 1>&2 2>&3)
+}
 
 function pressKey {
 	read -sn 1 -p 'Press any key to continue...';echo
+}
+
+function rmContainer {
+	path1=$1
+	res=""
+	for entry in $path1
+	do
+		ID=$(echo $entry | cut -d ":" -f 1)
+		NAME=$(echo $entry | cut -d ":" -f 2)
+		res=${res}${ID}" "${NAME}" OFF "
+	done
+	
+	DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
+	"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
+	exitstatus=$?
+
+	if [ "$DISTROS" ];  then
+		docker rm $DISTROS
+	fi
+}
+
+function logContainer {
+	path1=$1
+	res=""
+	for entry in $path1
+	do
+		ID=$(echo $entry | cut -d ":" -f 1)
+		NAME=$(echo $entry | cut -d ":" -f 2)
+		res=${res}${ID}" "${NAME}" OFF "
+	done
+	
+	DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
+	"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
+	exitstatus=$?
+
+	if [ "$DISTROS" ];  then
+		docker logs $DISTROS
+	fi
 }
 
 curdir=$(pwd)
@@ -88,7 +133,38 @@ function main {
 		if [ $estatus = 1 ];  then
 			exit
 		fi
-		
+
+		if [ $OPTION = "volumes" ];  then
+			volumesMenu
+			checkOption2
+
+			if [ $OPTION2 = "ls" ];  then
+				docker volume ls
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "inspect" ];  then
+				path1=$(docker volume ls --format '{{.Driver}}:{{.Name}}')
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${NAME}" "${ID}" OFF "
+				done
+
+				DISTROS=$(whiptail --title  "Выбор тома" --radiolist \
+				"Выберите том?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+				
+				if [ "$DISTROS" ];  then
+					docker volume inspect $DISTROS
+					pressKey
+					continue
+				fi
+			fi
+		fi
+
 		if [ $OPTION = "networks" ];  then
 			networksMenu
 			checkOption2
@@ -178,86 +254,28 @@ function main {
 
 			if [ $OPTION2 = "rm" ];  then
 				path1=$(docker ps --format '{{.ID}}:{{.Names}}')
-				##path1=$(docker ps --format '{{.Names}}')
-				res=""
-				for entry in $path1
-				do
-					ID=$(echo $entry | cut -d ":" -f 1)
-					NAME=$(echo $entry | cut -d ":" -f 2)
-					res=${res}${ID}" "${NAME}" OFF "
-					##res=${res}${entry}" "${entry}" OFF "
-				done
-				
-				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
-				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
-				exitstatus=$?
-
-				docker rm $DISTROS
+				rmContainer "$path1"
 				pressKey
 				continue
 			fi
 
 			if [ $OPTION2 = "rma" ];  then
 				path1=$(docker ps -a --format '{{.ID}}:{{.Names}}')
-				##path1=$(docker ps --format '{{.Names}}')
-				res=""
-				for entry in $path1
-				do
-					ID=$(echo $entry | cut -d ":" -f 1)
-					NAME=$(echo $entry | cut -d ":" -f 2)
-					res=${res}${ID}" "${NAME}" OFF "
-					##res=${res}${entry}" "${entry}" OFF "
-				done
-				
-				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
-				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
-				exitstatus=$?
-
-				docker rm $DISTROS
+				rmContainer "$path1"
 				pressKey
 				continue
 			fi
 
 			if [ $OPTION2 = "logs" ];  then
 				path1=$(docker ps --format '{{.ID}}:{{.Names}}')
-				res=""
-				for entry in $path1
-				do
-					ID=$(echo $entry | cut -d ":" -f 1)
-					NAME=$(echo $entry | cut -d ":" -f 2)
-					res=${res}${ID}" "${NAME}" OFF "
-				done
-				
-				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
-				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
-				exitstatus=$?
-
-				if [ "$DISTROS" ];  then
-					docker logs $DISTROS
-				fi
-
+				logContainer $path1
 				pressKey
 				continue
 			fi
 
 			if [ $OPTION2 = "logsa" ];  then
 				path1=$(docker ps -a --format '{{.ID}}:{{.Names}}')
-				res=""
-				for entry in $path1
-				do
-					ID=$(echo $entry | cut -d ":" -f 1)
-					NAME=$(echo $entry | cut -d ":" -f 2)
-					res=${res}${ID}" "${NAME}" OFF "
-				done
-				
-				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
-				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
-				exitstatus=$?
-
-				if [ "$DISTROS" ];  then
-					docker logs $DISTROS
-				fi
-
+				logContainer $path1
 				pressKey
 				continue
 			fi
