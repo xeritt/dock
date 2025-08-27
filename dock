@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.5.4
+VERSION=1.5.5
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Install whiptail [sudo apt install whiptail]"
@@ -268,14 +268,14 @@ function main {
 
 			if [ $OPTION2 = "logs" ];  then
 				path1=$(docker ps --format '{{.ID}}:{{.Names}}')
-				logContainer $path1
+				logContainer "$path1"
 				pressKey
 				continue
 			fi
 
 			if [ $OPTION2 = "logsa" ];  then
 				path1=$(docker ps -a --format '{{.ID}}:{{.Names}}')
-				logContainer $path1
+				logContainer "$path1"
 				pressKey
 				continue
 			fi
