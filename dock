@@ -1,7 +1,8 @@
 #!/bin/bash
-VERSION=1.5.1
+VERSION=1.5.3
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
+echo "Install whiptail [sudo apt install whiptail]"
 echo "Copy to project dir and run ./dock"
 
 OPTION='?' 
@@ -14,7 +15,7 @@ function checkOption2 {
 }
 
 function mainMenu {
-	OPTION=$(whiptail --title  "Система управения docker $VERSION" --menu  "Команды" 20 60 10 \
+	OPTION=$(whiptail --title  "Система управления docker-compose $VERSION" --menu  "Команды" 20 60 10 \
 	"composeup" "Поднять compose" \
 	"composedown" "Остановить compose" \
 	"composeimages" "Список образов" \
@@ -58,10 +59,13 @@ function containersMenu {
 	OPTION2=$(whiptail --title  "Контейнеры" --menu  "Команды" 20 60 10 \
 	"ps" "Список контейнеров" \
 	"psshort" "Список контейнеров (ID NAME)" \
+	"psa" "Список ВСЕХ контейнеров" \
 	"logs" "Лог контейнера" \
+	"logsa" "Лог OFF контейнеров" \
 	"stop" "Остановить контейнер" \
 	"bash" "Bash в контейнере" \
 	"rm" "Удалить контейнер" \
+	"rma" "Удалить OFF контейнер" \
 	3>&1 1>&2 2>&3)
 }
 
@@ -142,7 +146,13 @@ function main {
 				pressKey
 				continue
 			fi
-		
+
+			if [ $OPTION2 = "psa" ];  then
+				docker ps -a
+				pressKey
+				continue
+			fi
+
 			if [ $OPTION2 = "psshort" ];  then
 				docker ps --format '{{.ID}} {{.Names}}'
 				pressKey
@@ -187,8 +197,51 @@ function main {
 				continue
 			fi
 
+			if [ $OPTION2 = "rma" ];  then
+				path1=$(docker ps -a --format '{{.ID}}:{{.Names}}')
+				##path1=$(docker ps --format '{{.Names}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+					##res=${res}${entry}" "${entry}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
+				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				docker rm $DISTROS
+				pressKey
+				continue
+			fi
+
 			if [ $OPTION2 = "logs" ];  then
 				path1=$(docker ps --format '{{.ID}}:{{.Names}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d ":" -f 1)
+					NAME=$(echo $entry | cut -d ":" -f 2)
+					res=${res}${ID}" "${NAME}" OFF "
+				done
+				
+				DISTROS=$(whiptail --title  "Выбор контейнера" --radiolist \
+				"Выберите контейнер?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				exitstatus=$?
+
+				if [ "$DISTROS" ];  then
+					docker logs $DISTROS
+				fi
+
+				pressKey
+				continue
+			fi
+
+			if [ $OPTION2 = "logsa" ];  then
+				path1=$(docker ps -a --format '{{.ID}}:{{.Names}}')
 				res=""
 				for entry in $path1
 				do
@@ -234,8 +287,6 @@ function main {
 			##pressKey
 			continue
 		fi
-
-		
 
 		if [ $OPTION = "composeup" ];  then
 			docker-compose up -d
