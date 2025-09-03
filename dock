@@ -213,31 +213,17 @@ function addServicePorts {
 		echo "You chose No. Exit status was $?."
 		return
 	fi
-  ##ask=$(whiptail --title "$slotTitle" --yesno "$slotVal" 10 60)
-  ##ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
-	##exitstatus=$?
   exitstatus=0
-  ##ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
-##echo $ask
 	while [ $exitstatus = 0 ] 
 	do
 		ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
 		exitstatus="$?"
-		echo $exitstatus
+		echo "Порт ${ask} добавлен" 
 		pressKey
-		##continue
 	  if [ $exitstatus = 0 ]; then
-			 echo "$slotOffset - $ask" >> $buildFileName
+			 echo "$slotOffset  - $ask" >> $buildFileName
 		fi
-  	# Commands to be executed
 	done
-	#slot=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
-	#exitstatus=$?
-	#if [ $exitstatus = 0 ];  then
-#		echo "$slotOffset$slotVal: " >> $buildFileName
-	#else
-	#	echo "Error code slot $slotVal" $exitstatus
-		##return
 }
 
 function addService {
@@ -263,14 +249,29 @@ function addService {
 		echo "    build:" $build >> $fileName
 		if [ -z $build ]; then
 			addServiceSlot "Имя файла сборки" "Dockerfile" "DockerfileName" "      "
-		##else
-		##	echo "    build:" $build >> $fileName
 		fi
 	else
-		##echo "Error code" $exitstatus
-		addServiceSlot "Образ сервиса" "image" "none" "$of"
-		##return
+		if (whiptail --title  "Образ сервиса выбрать?" --yesno  "Да или нет" 10 60)  then
+				path1=$(docker images --format '{{.ID}}@{{.Repository}}:{{.Tag}}')
+				res=""
+				for entry in $path1
+				do
+					ID=$(echo $entry | cut -d "@" -f 1)
+					NAME=$(echo $entry | cut -d "@" -f 2)
+					res="${res}${NAME} ${ID} OFF "
+				done
+				##echo $res;
+
+				image=$(whiptail --title  "Выбор образа" --radiolist "Выберите проект?" 25 85 18 $res 3>&1 1>&2 2>&3)
+				##exitstatus=$?
+				if [ "$image" ];  then
+					echo "${of}image: ${image}" >> $buildFileName
+				fi
+		else
+			addServiceSlot "Образ сервиса" "image" "none" "$of"
+		fi
 	fi
+
   ##addServiceSlot "Сборка сервиса" "build" "."
 	addServiceSlot "Имя контейнера" "container_name" "container_name" "$of"
 	addServicePorts "Добавить порт?" "host_post:container_post" "80:80" "$of"
