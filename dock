@@ -23,6 +23,7 @@ function mainMenu {
 	"images" "Образы" \
 	"networks" "Сети" \
 	"volumes" "Тома" \
+	"editor" "Редактор" \
 	"infos" Информация \
 	"dockerfile" "Dockerfile" \
 	3>&1 1>&2 2>&3)
@@ -119,6 +120,150 @@ function logContainer {
 	fi
 }
 
+#### Editor functions
+
+function editorMenu {
+	OPTION2=$(whiptail --title  "Редактор" --menu  "Команды" 20 60 10 \
+	##"new" "Создать docker-compose" \
+	##"edit" "Редактировать" \
+	"add" "Добавить сервис" \
+	3>&1 1>&2 2>&3)
+}
+
+function parse_yaml {
+	local prefix=$2
+	local s='[[:space:]]*' w='[a-zA-Z0-9_]*'
+	fs=$(echo @|tr @ '\034') # Use a non-printable character as field separator
+
+	echo `sed -ne "s|^\\($s\\):|\\1|" \
+			-e "s|^\\($s\\)\\($w\\)$s:$s[\\\"\']\\(.*\\)[\\\"\']$s\\$|\\1$fs\\2$fs\\3|p" \
+			-e "s|^\\($s\\)\\($w\\)$s:$s\\(.*\\)$s\\$|\\1$fs\\2$fs\\3|p" $1 `
+	#awk -F$fs '{
+#			indent = length($1)/2;
+#			vname[indent] = $2;
+#			for (i in vname) {if (i > indent) {delete vname[i]}}
+#			if (length($3) > 0) {
+#					vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+#					echo "$prefix$2="$3
+#					printf("%s%s%s=\"%s\"\\n", "'$prefix'",vn, $2, $3);
+#			}
+#	}'
+}
+
+function parse_yaml_original {
+    local prefix=$2
+    local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+
+    sed -ne "s|^\($s\):|\1|" \
+        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
+    awk -F$fs '{
+        indent = length($1)/2;
+        vname[indent] = $2;
+        for (i in vname) {if (i > indent) {delete vname[i]}}
+        if (length($3) > 0) {
+            vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+	          printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+        }
+    }'
+}
+
+function newCompose {
+	#echo "services:" > build.yml
+	#name=$(whiptail --title  "Название сервиса" --inputbox  "Название" 10 60 3>&1 1>&2 2>&3)
+	#echo " "$name":" >> build.yml
+	echo "New"
+  eval $(parse_yaml_original "sample/docker-compose.yml" "COM_")
+	echo $COM_services_haproxy_container_name
+#exitstatus=$?
+#if [ $exitstatus = 0 ];  then
+#     echo "Your pet name is:" $PET
+#else
+#     echo "You chose Cancel."
+#fi
+}
+
+buildFileName="build.yml"
+
+function addServiceSlot {
+	slotTitle=$1
+	slotVal=$2
+	slotDefault=$3
+	slotOffset=$4
+
+  echo $slotTitle
+
+	slot=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
+	exitstatus=$?
+	if [ $exitstatus = 0 ];  then
+		echo "$slotOffset$slotVal: $slot" >> $buildFileName
+	else
+		echo "Error code slot $slotVal" $exitstatus
+		##return
+	fi
+}
+
+function addService {
+	##echo "services:" > build.yml
+
+	fileName=$buildFileName
+	of="    "
+
+	name=$(whiptail --title  "Название сервиса" --inputbox  "Название" 10 60 service_name 3>&1 1>&2 2>&3)
+	exitstatus=$?
+	if [ $exitstatus = 0 ];  then
+		echo $fileName
+		echo "services:" > $fileName
+		echo "  "$name":" >> $fileName
+	else
+		echo "Error?? code" $exitstatus
+		return
+	fi
+
+	build=$(whiptail --title  "Сборка сервиса" --inputbox  "build" 10 60 . 3>&1 1>&2 2>&3)
+	exitstatus=$?
+	if [ $exitstatus = 0 ];  then
+		echo "    build:" $build >> $fileName
+		if [ -z $build ]; then
+			addServiceSlot "Имя файла сборки" "Dockerfile" "DockerfileName" "      "
+		##else
+		##	echo "    build:" $build >> $fileName
+		fi
+	else
+		##echo "Error code" $exitstatus
+		addServiceSlot "Образ сервиса" "image" "none" "$of"
+		##return
+	fi
+  ##addServiceSlot "Сборка сервиса" "build" "."
+	addServiceSlot "Имя контейнера" "container_name" "container_name" "$of"
+
+	addServiceSlot "Перезапуск контейнера" "restart" "unless-stopped" "$of"
+	addServiceSlot "Включить консоль" "tty" "true" "$of"
+	addServiceSlot "Включить stdin_open" "stdin_open" "true" "$of"
+	
+#	echo "    build:" $build >> $fileName
+	echo "Done. Ok."
+	#if [ $exitstatus = 0 ];  then
+	#	echo "services:" > build.yml
+	#	echo " "$name":" >> build.yml
+	#else
+  ##		echo "You chose Cancel."
+	#fi
+}
+
+function editorFunction {
+	arg=$1
+	echo $arg
+	if [ $arg = "new" ]; then
+		newCompose
+	fi
+
+	if [ $arg = "add" ]; then
+		addService
+	fi
+}
+#####################
+
 curdir=$(pwd)
 
 function main {
@@ -132,6 +277,15 @@ function main {
 		##echo "Статус операции "$estatus		
 		if [ $estatus = 1 ];  then
 			exit
+		fi
+
+		if [ $OPTION = "editor" ];  then
+			editorMenu
+			checkOption2
+
+			editorFunction "$OPTION2"
+			pressKey
+			continue
 		fi
 
 		if [ $OPTION = "volumes" ];  then
