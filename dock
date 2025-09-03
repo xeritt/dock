@@ -124,9 +124,8 @@ function logContainer {
 
 function editorMenu {
 	OPTION2=$(whiptail --title  "Редактор" --menu  "Команды" 20 60 10 \
-	##"new" "Создать docker-compose" \
-	##"edit" "Редактировать" \
 	"add" "Добавить сервис" \
+	"cat" "Посмотреть результат" \
 	3>&1 1>&2 2>&3)
 }
 
@@ -191,8 +190,7 @@ function addServiceSlot {
 	slotDefault=$3
 	slotOffset=$4
 
-  echo $slotTitle
-
+  #echo $slotTitle
 	slot=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
 	exitstatus=$?
 	if [ $exitstatus = 0 ];  then
@@ -201,6 +199,45 @@ function addServiceSlot {
 		echo "Error code slot $slotVal" $exitstatus
 		##return
 	fi
+}
+
+function addServicePorts {
+	slotTitle=$1
+	slotVal=$2
+	slotDefault=$3
+	slotOffset=$4
+	if (whiptail --title  "Добавить порты?" --yesno  "Да или нет" 10 60)  then
+	  echo "${slotOffset}ports:" >> $buildFileName
+		echo "You chose Yes. Exit status was $?."
+	else
+		echo "You chose No. Exit status was $?."
+		return
+	fi
+  ##ask=$(whiptail --title "$slotTitle" --yesno "$slotVal" 10 60)
+  ##ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
+	##exitstatus=$?
+  exitstatus=0
+  ##ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
+##echo $ask
+	while [ $exitstatus = 0 ] 
+	do
+		ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
+		exitstatus="$?"
+		echo $exitstatus
+		pressKey
+		##continue
+	  if [ $exitstatus = 0 ]; then
+			 echo "$slotOffset - $ask" >> $buildFileName
+		fi
+  	# Commands to be executed
+	done
+	#slot=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
+	#exitstatus=$?
+	#if [ $exitstatus = 0 ];  then
+#		echo "$slotOffset$slotVal: " >> $buildFileName
+	#else
+	#	echo "Error code slot $slotVal" $exitstatus
+		##return
 }
 
 function addService {
@@ -236,19 +273,12 @@ function addService {
 	fi
   ##addServiceSlot "Сборка сервиса" "build" "."
 	addServiceSlot "Имя контейнера" "container_name" "container_name" "$of"
-
-	addServiceSlot "Перезапуск контейнера" "restart" "unless-stopped" "$of"
-	addServiceSlot "Включить консоль" "tty" "true" "$of"
-	addServiceSlot "Включить stdin_open" "stdin_open" "true" "$of"
+	addServicePorts "Добавить порт?" "host_post:container_post" "80:80" "$of"
+#	addServiceSlot "Перезапуск контейнера" "restart" "unless-stopped" "$of"
+#	addServiceSlot "Включить консоль" "tty" "true" "$of"
+#	addServiceSlot "Включить stdin_open" "stdin_open" "true" "$of"
 	
-#	echo "    build:" $build >> $fileName
 	echo "Done. Ok."
-	#if [ $exitstatus = 0 ];  then
-	#	echo "services:" > build.yml
-	#	echo " "$name":" >> build.yml
-	#else
-  ##		echo "You chose Cancel."
-	#fi
 }
 
 function editorFunction {
