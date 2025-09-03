@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.5.5
+VERSION=1.6
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Install whiptail [sudo apt install whiptail]"
@@ -124,8 +124,10 @@ function logContainer {
 
 function editorMenu {
 	OPTION2=$(whiptail --title  "Редактор" --menu  "Команды" 20 60 10 \
+	"new" "Новый build" \
 	"add" "Добавить сервис" \
 	"cat" "Посмотреть результат" \
+	"save" "Сохранить" \
 	3>&1 1>&2 2>&3)
 }
 
@@ -167,22 +169,26 @@ function parse_yaml_original {
     }'
 }
 
+buildFileName="build.yml"
+
 function newCompose {
-	#echo "services:" > build.yml
-	#name=$(whiptail --title  "Название сервиса" --inputbox  "Название" 10 60 3>&1 1>&2 2>&3)
-	#echo " "$name":" >> build.yml
-	echo "New"
-  eval $(parse_yaml_original "sample/docker-compose.yml" "COM_")
-	echo $COM_services_haproxy_container_name
-#exitstatus=$?
-#if [ $exitstatus = 0 ];  then
-#     echo "Your pet name is:" $PET
-#else
-#     echo "You chose Cancel."
-#fi
+	echo "services:" > $buildFileName
+	echo "Файл $buildFileName обновлен"
+#	echo "New"
+ # eval $(parse_yaml_original "sample/docker-compose.yml" "COM_")
+#	echo $COM_services_haproxy_container_name
 }
 
-buildFileName="build.yml"
+function catBuild {
+	cat $buildFileName
+}
+
+function saveBuild {
+	if (whiptail --title  "Сохранить build? " --yesno  "Старый файл docker-compose.yml будет стерт. Да или нет" 10 60)  then
+		cp $buildFileName docker-compose.yml
+		echo "Изменения сохранены в docker-compose.yml"
+	fi
+}
 
 function addServiceSlot {
 	slotTitle=$1
@@ -208,9 +214,7 @@ function addServicePorts {
 	slotOffset=$4
 	if (whiptail --title  "Добавить порты?" --yesno  "Да или нет" 10 60)  then
 	  echo "${slotOffset}ports:" >> $buildFileName
-		echo "You chose Yes. Exit status was $?."
 	else
-		echo "You chose No. Exit status was $?."
 		return
 	fi
   exitstatus=0
@@ -219,6 +223,29 @@ function addServicePorts {
 		ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
 		exitstatus="$?"
 		echo "Порт ${ask} добавлен" 
+		pressKey
+	  if [ $exitstatus = 0 ]; then
+			 echo "$slotOffset  - $ask" >> $buildFileName
+		fi
+	done
+}
+
+function addServiceVolumes {
+	slotTitle=$1
+	slotVal=$2
+	slotDefault=$3
+	slotOffset=$4
+	if (whiptail --title  "Добавить Volumes?" --yesno  "Да или нет" 10 60)  then
+	  echo "${slotOffset}volumes:" >> $buildFileName
+	else
+		return
+	fi
+  exitstatus=0
+	while [ $exitstatus = 0 ] 
+	do
+		ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
+		exitstatus="$?"
+		echo "Volume ${ask} добавлен" 
 		pressKey
 	  if [ $exitstatus = 0 ]; then
 			 echo "$slotOffset  - $ask" >> $buildFileName
@@ -236,7 +263,7 @@ function addService {
 	exitstatus=$?
 	if [ $exitstatus = 0 ];  then
 		echo $fileName
-		echo "services:" > $fileName
+#		echo "services:" > $fileName
 		echo "  "$name":" >> $fileName
 	else
 		echo "Error?? code" $exitstatus
@@ -251,7 +278,7 @@ function addService {
 			addServiceSlot "Имя файла сборки" "Dockerfile" "DockerfileName" "      "
 		fi
 	else
-		if (whiptail --title  "Образ сервиса выбрать?" --yesno  "Да или нет" 10 60)  then
+		if (whiptail --title  "Выбрать образ сервиса?" --yesno  "Да или нет" 10 60)  then
 				path1=$(docker images --format '{{.ID}}@{{.Repository}}:{{.Tag}}')
 				res=""
 				for entry in $path1
@@ -260,10 +287,7 @@ function addService {
 					NAME=$(echo $entry | cut -d "@" -f 2)
 					res="${res}${NAME} ${ID} OFF "
 				done
-				##echo $res;
-
 				image=$(whiptail --title  "Выбор образа" --radiolist "Выберите проект?" 25 85 18 $res 3>&1 1>&2 2>&3)
-				##exitstatus=$?
 				if [ "$image" ];  then
 					echo "${of}image: ${image}" >> $buildFileName
 				fi
@@ -272,13 +296,15 @@ function addService {
 		fi
 	fi
 
-  ##addServiceSlot "Сборка сервиса" "build" "."
 	addServiceSlot "Имя контейнера" "container_name" "container_name" "$of"
 	addServicePorts "Добавить порт?" "host_post:container_post" "80:80" "$of"
-#	addServiceSlot "Перезапуск контейнера" "restart" "unless-stopped" "$of"
-#	addServiceSlot "Включить консоль" "tty" "true" "$of"
-#	addServiceSlot "Включить stdin_open" "stdin_open" "true" "$of"
-	
+	addServiceVolumes "Добавить volume?" "host_volume:container_volume" "./source:/dist" "$of"
+	if (whiptail --title  "Добавить особые параметры?" --yesno  "Да или нет" 10 60)  then
+		addServiceSlot "Перезапуск контейнера" "restart" "unless-stopped" "$of"
+		addServiceSlot "Включить консоль" "tty" "true" "$of"
+		addServiceSlot "Включить stdin_open" "stdin_open" "true" "$of"
+	fi
+
 	echo "Done. Ok."
 }
 
@@ -291,6 +317,14 @@ function editorFunction {
 
 	if [ $arg = "add" ]; then
 		addService
+	fi
+
+	if [ $arg = "cat" ]; then
+		catBuild
+	fi
+
+	if [ $arg = "save" ]; then
+		saveBuild
 	fi
 }
 #####################
