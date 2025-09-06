@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.6
+VERSION=1.6.1
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Install whiptail [sudo apt install whiptail]"
@@ -207,6 +207,29 @@ function addServiceSlot {
 	fi
 }
 
+function addServiceEnv {
+	slotTitle=$1
+	slotVal=$2
+	slotDefault=$3
+	slotOffset=$4
+	if (whiptail --title  "Добавить переменную environment?" --yesno  "Да или нет" 10 60)  then
+	  echo "${slotOffset}environment:" >> $buildFileName
+	else
+		return
+	fi
+  exitstatus=0
+	while [ $exitstatus = 0 ] 
+	do
+		ask=$(whiptail --title "$slotTitle" --inputbox "$slotVal" 10 60 "$slotDefault" 3>&1 1>&2 2>&3)
+		exitstatus="$?"
+		echo "Переменная ${ask} добавлена" 
+		pressKey
+	  if [ $exitstatus = 0 ]; then
+			 echo "$slotOffset  - $ask" >> $buildFileName
+		fi
+	done
+}
+
 function addServicePorts {
 	slotTitle=$1
 	slotVal=$2
@@ -255,6 +278,9 @@ function addServiceVolumes {
 
 function addService {
 	##echo "services:" > build.yml
+	if [ ! -f "$buildFileName" ]; then
+		echo "services:" > $buildFileName
+	fi
 
 	fileName=$buildFileName
 	of="    "
@@ -299,11 +325,14 @@ function addService {
 	addServiceSlot "Имя контейнера" "container_name" "container_name" "$of"
 	addServicePorts "Добавить порт?" "host_post:container_post" "80:80" "$of"
 	addServiceVolumes "Добавить volume?" "host_volume:container_volume" "./source:/dist" "$of"
+	addServiceEnv "Добавить переменную environment?" "name=value" "name=value" "$of"
+
 	if (whiptail --title  "Добавить особые параметры?" --yesno  "Да или нет" 10 60)  then
 		addServiceSlot "Перезапуск контейнера" "restart" "unless-stopped" "$of"
 		addServiceSlot "Включить консоль" "tty" "true" "$of"
 		addServiceSlot "Включить stdin_open" "stdin_open" "true" "$of"
 	fi
+
 
 	echo "Done. Ok."
 }
