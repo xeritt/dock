@@ -1,12 +1,17 @@
 #!/bin/bash
-VERSION=1.6.2
+VERSION=1.6.3
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Install whiptail [sudo apt install whiptail]"
 echo "Copy to project dir and run ./dock"
+echo 'Use UID and GID like [user: ${UID}:${GID}]'
 
 OPTION='?' 
 OPTION2='?' 
+
+##readonly UID=$(id -u) 
+export UID
+export GID=$(id -g)
 
 function checkOption2 {
 	if [ -z $OPTION2 ]; then
@@ -362,7 +367,7 @@ function editorFunction {
 curdir=$(pwd)
 
 function main {
-	
+
 	estatus=0
 	##echo $curdir
 	while [ $estatus = 0 ]
@@ -556,6 +561,7 @@ function main {
 		fi
 
 		if [ $OPTION = "composeup" ];  then
+			##env UID=${UID} GID=${GID} 
 			docker-compose up -d
 			exit
 			continue
