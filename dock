@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.6.1
+VERSION=1.6.2
 echo "DOCK v.$VERSION"
 echo "Help programm with docker"
 echo "Install whiptail [sudo apt install whiptail]"
@@ -15,8 +15,9 @@ function checkOption2 {
 }
 
 function mainMenu {
-	OPTION=$(whiptail --title  "Система управления docker-compose $VERSION" --menu  "Команды" 20 60 10 \
+	OPTION=$(whiptail --title  "Система управления docker-compose $VERSION" --menu  "Команды" 20 60 11 \
 	"composeup" "Поднять compose" \
+	"composerestart" "Перезапустить compose" \
 	"composedown" "Остановить compose" \
 	"composeimages" "Список образов" \
 	"containers" "Контейнеры" \
@@ -556,6 +557,12 @@ function main {
 
 		if [ $OPTION = "composeup" ];  then
 			docker-compose up -d
+			exit
+			continue
+		fi
+
+		if [ $OPTION = "composerestart" ];  then
+			docker-compose restart
 			exit
 			continue
 		fi
